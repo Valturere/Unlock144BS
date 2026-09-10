@@ -21,7 +21,9 @@ Joyose, Shizuku и root не требуются. Приложение не из�
 2. Предоставить Usage Access.
 3. На открывшемся экране батареи выбрать **Нет ограничений**. На HyperOS это нужно,
    чтобы система не замораживала watcher во время игры.
-4. Разрешить тихое уведомление и включить Auto Fix.
+4. Включить Auto Fix. Приложение не запрашивает разрешение на уведомления: на новой
+   установке служебная карточка скрыта, а watcher продолжает работать как foreground
+   service. Управлять видимостью можно кнопкой «Открыть настройки уведомлений».
 
 После этого Brawl Stars можно запускать обычным способом. При включённой настройке
 «Запуск после перезагрузки» watcher возобновляется после первой разблокировки телефона.
@@ -32,15 +34,26 @@ Joyose, Shizuku и root не требуются. Приложение не из�
 
 ## Сборка
 
-Проект рассчитан на Android Studio и JDK 17:
+Проект рассчитан на Android Studio и JDK 17. Для первой release-сборки один раз
+создайте постоянный локальный ключ:
+
+```powershell
+.\scripts\create-release-keystore.ps1
+```
+
+Скрипт создаёт игнорируемые Git файлы `signing/unlock144bs-release.jks` и
+`keystore.properties`. Их нужно сохранить вместе в защищённой резервной копии:
+без того же ключа Android не позволит устанавливать будущие обновления поверх release.
+
+Сборка и проверки:
 
 ```powershell
 .\gradlew.bat testDebugUnitTest lintDebug assembleDebug assembleRelease
 ```
 
 Минимальная версия — Android 8.0 (API 26), target/compile SDK — 36. Debug APK появляется
-в `app/build/outputs/apk/debug/app-debug.apk`; release-вариант без пользовательского
-ключа подписи — в `app/build/outputs/apk/release/`.
+в `app/build/outputs/apk/debug/app-debug.apk`; подписанный release — в
+`app/build/outputs/apk/release/app-release.apk` при наличии `keystore.properties`.
 
 ## Проверка на устройстве
 
