@@ -6,8 +6,13 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.View
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
+import androidx.core.content.PackageManagerCompat
+import androidx.core.content.UnusedAppRestrictionsConstants
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.materialswitch.MaterialSwitch
@@ -27,6 +32,12 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class MainActivity : AppCompatActivity() {
+    private val appSettingsLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) {
+        render()
+    }
+
     private lateinit var preferences: AppPreferences
     private lateinit var diagnostics: DiagnosticStore
     private lateinit var deviceInfo: DeviceInfoProvider
@@ -127,9 +138,18 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        findViewById<MaterialButton>(R.id.usage_access_button).setOnClickListener { openUsageSettings() }
+        findViewById<MaterialButton>(R.id.usage_access_button).setOnClickListener {
+            waitingForUsageAccess = true
+            openUsageSettings()
+        }
+        findViewById<MaterialButton>(R.id.open_app_info_button).setOnClickListener {
+            openAppInfo()
+        }
         findViewById<MaterialButton>(R.id.battery_access_button).setOnClickListener {
             requestBatteryExemption(enableAfterGrant = false)
+        }
+        findViewById<MaterialButton>(R.id.background_settings_button).setOnClickListener {
+            openUnusedAppRestrictionsSettings()
         }
         findViewById<MaterialButton>(R.id.notification_settings_button).setOnClickListener {
             openNotificationSettings()
@@ -234,6 +254,39 @@ class MainActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
+    private fun openAppInfo() {
+        val packageUri = Uri.parse("package:$packageName")
+        try {
+            appSettingsLauncher.launch(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri),
+            )
+        } catch (_: Exception) {
+            appSettingsLauncher.launch(Intent(Settings.ACTION_APPLICATION_SETTINGS))
+        }
+    }
+
+    private fun openUnusedAppRestrictionsSettings() {
+        val statusFuture = PackageManagerCompat.getUnusedAppRestrictionsStatus(this)
+        statusFuture.addListener(
+            {
+                val status = runCatching { statusFuture.get() }
+                    .getOrDefault(UnusedAppRestrictionsConstants.ERROR)
+                if (status == UnusedAppRestrictionsConstants.FEATURE_NOT_AVAILABLE) {
+                    openAppInfo()
+                    return@addListener
+                }
+                try {
+                    appSettingsLauncher.launch(
+                        IntentCompat.createManageUnusedAppRestrictionsIntent(this, packageName),
+                    )
+                } catch (_: Exception) {
+                    openAppInfo()
+                }
+            },
+            ContextCompat.getMainExecutor(this),
+        )
+    }
+
     private fun openNotificationSettings() {
         startActivity(
             Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
@@ -292,6 +345,19 @@ class MainActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.battery_access_button).setText(
             if (batteryExempt) R.string.battery_access_granted else R.string.battery_access_required,
         )
+        findViewById<View>(R.id.setup_steps).visibility = if (
+            shouldShowSetupSteps(
+                autoFixEnabled = preferences.autoFixEnabled,
+                usageGranted = usageGranted,
+                batteryExempt = batteryExempt,
+            )
+        ) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+        findViewById<View>(R.id.restricted_settings_help).visibility =
+            if (usageGranted) View.GONE else View.VISIBLE
         findViewById<MaterialButton>(R.id.notification_settings_button).setText(
             if (serviceNotificationVisible) {
                 R.string.hide_service_notification
