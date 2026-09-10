@@ -1,0 +1,29 @@
+# Android / Gradle
+.gradle/
+build/
+**/build/
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Build artifacts and signing material
+*.apk
+*.aab
+*.ap_
+*.dex
+*.jks
+*.keystore
+keystore.properties
+
+# Local research inputs/outputs
+PowerKeeper.apk
+.analysis-apk/
+
+# OS files
+.DS_Store
+Thumbs.db
