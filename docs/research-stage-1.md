@@ -38,10 +38,12 @@ re-evaluates the current foreground app when the target is foreground.
 PowerKeeper process. Sending the known ADB command produced a broadcast-history
 entry delivered to exactly that runtime `BroadcastFilter`.
 
-An explicit component cannot target this anonymous dynamic receiver. An implicit
-broadcast is therefore required. `Intent.setPackage("com.miui.powerkeeper")` is
-optional and will be tested separately; it may narrow delivery without changing
-the receiver API.
+An explicit component cannot target this anonymous dynamic receiver. A broadcast
+matched by action is therefore required. `Intent.setPackage("com.miui.powerkeeper")`
+is optional; both unscoped and package-scoped broadcasts were delivered. The PoC
+uses `setPackage` to limit delivery to PowerKeeper.
 
-The next stage verifies delivery from a normal third-party application UID. A
-successful return from `sendBroadcast()` alone is not treated as proof.
+No safe reset value exists in this action's handler: zero and negative rates are
+ignored. The override is stored in an in-memory `mPrivGames` map. Auto Fix being
+turned off should therefore mean "stop sending" unless a separate, verified reset
+mechanism is found later.

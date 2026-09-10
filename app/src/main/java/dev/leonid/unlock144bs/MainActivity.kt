@@ -54,6 +54,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun sendRefreshRateOverride() {
         val intent = Intent(ACTION_OVERRIDE_GAME_REFRESH_RATE).apply {
+            setPackage(POWER_KEEPER_PACKAGE)
             putExtra(EXTRA_PACKAGE_NAME, BRAWL_STARS_PACKAGE)
             putExtra(EXTRA_REFRESH_RATE, TARGET_REFRESH_RATE)
         }
@@ -75,6 +76,7 @@ class MainActivity : AppCompatActivity() {
             "com.xiaomi.joyose.OVERRIDE_GAME_FRESHRATE"
         const val EXTRA_PACKAGE_NAME = "override_pkg_name"
         const val EXTRA_REFRESH_RATE = "override_freshrate"
+        const val POWER_KEEPER_PACKAGE = "com.miui.powerkeeper"
         const val BRAWL_STARS_PACKAGE = "com.supercell.brawlstars"
         const val TARGET_REFRESH_RATE = 144
     }
