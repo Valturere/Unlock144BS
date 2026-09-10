@@ -23,6 +23,7 @@ keystore.properties
 # Local research inputs/outputs
 PowerKeeper.apk
 .analysis-apk/
+.analysis-*.png
 
 # OS files
 .DS_Store
