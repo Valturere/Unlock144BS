@@ -176,20 +176,25 @@ class AutoFixService : Service() {
             .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setSilent(true)
             .addAction(0, getString(R.string.disable_auto_fix), stopIntent)
             .build()
     }
 
     private fun createNotificationChannel() {
+        val manager = getSystemService(NotificationManager::class.java)
         val channel = NotificationChannel(
             CHANNEL_ID,
             getString(R.string.notification_channel_name),
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
             description = getString(R.string.notification_channel_description)
+            setSound(null, null)
+            enableVibration(false)
             setShowBadge(false)
         }
-        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        manager.createNotificationChannel(channel)
+        manager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
     }
 
     private fun stopSelfSafely() {
@@ -211,7 +216,8 @@ class AutoFixService : Service() {
 
     companion object {
         private const val TAG = "Unlock144BS"
-        private const val CHANNEL_ID = "auto_fix"
+        private const val CHANNEL_ID = "auto_fix_service_v2"
+        private const val LEGACY_CHANNEL_ID = "auto_fix"
         private const val NOTIFICATION_ID = 144
         private const val ACTION_STOP = "dev.leonid.unlock144bs.action.STOP_AUTO_FIX"
         @Volatile

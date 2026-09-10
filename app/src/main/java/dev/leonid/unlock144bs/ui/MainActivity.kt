@@ -1,17 +1,13 @@
 package dev.leonid.unlock144bs.ui
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
 import android.widget.TextView
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
+import androidx.core.app.NotificationManagerCompat
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.materialswitch.MaterialSwitch
@@ -44,16 +40,6 @@ class MainActivity : AppCompatActivity() {
     private var waitingForUsageAccess = false
     private var waitingForBatteryExemption = false
     private var enableAfterBatteryExemption = false
-
-    private val notificationPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        if (granted) enableAutoFix() else {
-            diagnostics.record("Notification permission", "denied")
-            showMessage(R.string.notification_permission_denied)
-            render()
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -91,7 +77,7 @@ class MainActivity : AppCompatActivity() {
             waitingForBatteryExemption = false
             if (BatteryOptimization.isExempt(this)) {
                 diagnostics.record("Battery optimization", "unrestricted")
-                if (enableAfterBatteryExemption) requestNotificationThenEnable()
+                if (enableAfterBatteryExemption) enableAutoFix()
                 else if (preferences.autoFixEnabled) AutoFixService.start(this)
             } else {
                 showMessage(R.string.battery_exemption_not_granted)
@@ -132,6 +118,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.battery_access_button).setOnClickListener {
             requestBatteryExemption(enableAfterGrant = false)
         }
+        findViewById<MaterialButton>(R.id.notification_settings_button).setOnClickListener {
+            openNotificationSettings()
+        }
         findViewById<MaterialButton>(R.id.apply_now_button).setOnClickListener { applyNow("Manual") }
         findViewById<MaterialButton>(R.id.launch_brawl_button).setOnClickListener { launchBrawl() }
         findViewById<MaterialButton>(R.id.diagnostics_button).setOnClickListener {
@@ -166,18 +155,7 @@ class MainActivity : AppCompatActivity() {
             requestBatteryExemption(enableAfterGrant = true)
             return
         }
-        requestNotificationThenEnable()
-    }
-
-    private fun requestNotificationThenEnable() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        } else {
-            enableAutoFix()
-        }
+        enableAutoFix()
     }
 
     private fun enableAutoFix() {
@@ -185,6 +163,9 @@ class MainActivity : AppCompatActivity() {
         if (AutoFixService.start(this)) {
             diagnostics.record("Auto Fix", "enabled by user")
             showMessage(R.string.auto_fix_started)
+            autoFixSwitch.postDelayed({
+                if (!isFinishing && !isDestroyed) render()
+            }, STATUS_REFRESH_DELAY_MS)
         } else {
             preferences.autoFixEnabled = false
         }
@@ -240,6 +221,13 @@ class MainActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
+    private fun openNotificationSettings() {
+        startActivity(
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName),
+        )
+    }
+
     private fun requestBatteryExemption(enableAfterGrant: Boolean) {
         waitingForBatteryExemption = true
         enableAfterBatteryExemption = enableAfterGrant
@@ -259,6 +247,7 @@ class MainActivity : AppCompatActivity() {
         val status = deviceInfo.snapshot()
         val usageGranted = UsageAccess.isGranted(this)
         val batteryExempt = BatteryOptimization.isExempt(this)
+        val serviceNotificationVisible = notificationsVisible()
         rendering = true
 
         autoFixSwitch.isChecked = preferences.autoFixEnabled
@@ -286,6 +275,20 @@ class MainActivity : AppCompatActivity() {
         )
         findViewById<MaterialButton>(R.id.battery_access_button).setText(
             if (batteryExempt) R.string.battery_access_granted else R.string.battery_access_required,
+        )
+        findViewById<MaterialButton>(R.id.notification_settings_button).setText(
+            if (serviceNotificationVisible) {
+                R.string.hide_service_notification
+            } else {
+                R.string.open_notification_settings
+            },
+        )
+        findViewById<TextView>(R.id.notification_explanation).setText(
+            if (serviceNotificationVisible) {
+                R.string.notification_explanation_visible
+            } else {
+                R.string.notification_explanation_hidden
+            },
         )
         findViewById<TextView>(R.id.last_applied_value).text = diagnostics.lastSuccessMillis
             .takeIf { it > 0L }
@@ -318,10 +321,14 @@ class MainActivity : AppCompatActivity() {
         Snackbar.make(findViewById(R.id.main_root), message, Snackbar.LENGTH_LONG).show()
     }
 
+    private fun notificationsVisible(): Boolean =
+        NotificationManagerCompat.from(this).areNotificationsEnabled()
+
     private companion object {
         const val KEY_WAITING_FOR_USAGE = "waiting_for_usage"
         const val KEY_WAITING_FOR_BATTERY = "waiting_for_battery"
         const val KEY_ENABLE_AFTER_BATTERY = "enable_after_battery"
+        const val STATUS_REFRESH_DELAY_MS = 500L
         val DATE_TIME_FORMAT: DateTimeFormatter = DateTimeFormatter
             .ofPattern("dd.MM.yyyy · HH:mm:ss")
             .withZone(ZoneId.systemDefault())

@@ -1,14 +1,11 @@
 package dev.leonid.unlock144bs.ui
 
-import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
+import androidx.core.app.NotificationManagerCompat
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
@@ -53,7 +50,7 @@ class DiagnosticsActivity : AppCompatActivity() {
             "${getString(R.string.brawl_label)}: ${if (status.brawlStarsInstalled) getString(R.string.installed) else getString(R.string.not_installed)}",
             "${getString(R.string.powerkeeper_label)}: ${status.powerKeeperVersion ?: getString(R.string.not_found)}",
             "${getString(R.string.usage_access_label)}: ${if (UsageAccess.isGranted(this)) getString(R.string.granted) else getString(R.string.denied)}",
-            "${getString(R.string.notification_permission_label)}: ${if (notificationGranted) getString(R.string.granted) else getString(R.string.denied)}",
+            "${getString(R.string.service_notification_title)}: ${if (notificationGranted) getString(R.string.visible) else getString(R.string.hidden)}",
             "${getString(R.string.battery_access_label)}: ${if (BatteryOptimization.isExempt(this)) getString(R.string.unrestricted) else getString(R.string.restricted)}",
             "${getString(R.string.watcher_label)}: ${if (AutoFixService.isLikelyRunning(this)) getString(R.string.active) else getString(R.string.inactive)}",
         ).joinToString("\n")
@@ -84,7 +81,7 @@ class DiagnosticsActivity : AppCompatActivity() {
             appendLine("Brawl installed: ${status.brawlStarsInstalled}")
             appendLine("PowerKeeper: ${status.powerKeeperVersion ?: "missing"}")
             appendLine("Usage Access: ${UsageAccess.isGranted(this@DiagnosticsActivity)}")
-            appendLine("Notifications: ${notificationPermissionGranted()}")
+            appendLine("Service notification visible: ${notificationPermissionGranted()}")
             appendLine("Battery unrestricted: ${BatteryOptimization.isExempt(this@DiagnosticsActivity)}")
             appendLine("Watcher active: ${AutoFixService.isLikelyRunning(this@DiagnosticsActivity)}")
             appendLine("Session applications: ${DiagnosticStore.sessionApplicationCount}")
@@ -103,7 +100,5 @@ class DiagnosticsActivity : AppCompatActivity() {
     }
 
     private fun notificationPermissionGranted(): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
+        NotificationManagerCompat.from(this).areNotificationsEnabled()
 }

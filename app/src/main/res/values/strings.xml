@@ -28,7 +28,11 @@
     <string name="battery_access_granted">Батарея: без ограничений</string>
     <string name="battery_access_required">Снять ограничение батареи</string>
     <string name="battery_access_explanation">HyperOS иначе может заморозить Auto Fix во время игры. Исключение действует только для Unlock144BS и отменяется в настройках.</string>
-    <string name="notification_explanation">Во время Auto Fix Android показывает постоянное тихое уведомление. Это необходимо для надёжной фоновой работы.</string>
+    <string name="service_notification_title">Служебное уведомление</string>
+    <string name="hide_service_notification">Скрыть в настройках Android</string>
+    <string name="open_notification_settings">Открыть настройки уведомлений</string>
+    <string name="notification_explanation_visible">Отключите «Показывать уведомления» в Android. Auto Fix продолжит работать.</string>
+    <string name="notification_explanation_hidden">Сейчас скрыто. Auto Fix продолжит работать; Android может показывать Unlock144BS в списке активных приложений.</string>
 
     <string name="target_rate">Целевая герцовка</string>
     <string name="rate_60">60</string>
@@ -55,7 +59,6 @@
     <string name="usage_access_not_granted">Usage Access не предоставлен</string>
     <string name="battery_exemption_not_granted">Ограничение батареи не снято — Auto Fix пока не включён</string>
     <string name="battery_settings_fallback">Выберите для батареи режим «Без ограничений»</string>
-    <string name="notification_permission_denied">Без уведомления Android не позволит надёжно держать Auto Fix в фоне</string>
     <string name="auto_fix_started">Auto Fix включён</string>
     <string name="auto_fix_stopped">Auto Fix выключен</string>
 
@@ -75,7 +78,6 @@
     <string name="device_label">Устройство</string>
     <string name="android_label">Android</string>
     <string name="usage_access_label">Usage Access</string>
-    <string name="notification_permission_label">Уведомления</string>
     <string name="battery_access_label">Батарея</string>
     <string name="watcher_label">Watcher</string>
     <string name="active">Активен</string>
@@ -84,6 +86,8 @@
     <string name="denied">Не предоставлен</string>
     <string name="unrestricted">Без ограничений</string>
     <string name="restricted">Ограничена</string>
+    <string name="visible">Показывается</string>
+    <string name="hidden">Скрыто</string>
     <string name="application_stats">Применения</string>
     <string name="session_count">За текущую сессию</string>
     <string name="total_count">Всего</string>
