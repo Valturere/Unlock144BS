@@ -3,6 +3,7 @@ package dev.leonid.unlock144bs.ui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.os.Bundle
+import android.os.PowerManager
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
@@ -12,13 +13,18 @@ import com.google.android.material.snackbar.Snackbar
 import dev.leonid.unlock144bs.BuildConfig
 import dev.leonid.unlock144bs.R
 import dev.leonid.unlock144bs.autofix.AutoFixService
+import dev.leonid.unlock144bs.data.AppPreferences
 import dev.leonid.unlock144bs.data.DiagnosticStore
 import dev.leonid.unlock144bs.system.BatteryOptimization
 import dev.leonid.unlock144bs.system.DeviceInfoProvider
 import dev.leonid.unlock144bs.system.UsageAccess
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 class DiagnosticsActivity : AppCompatActivity() {
     private lateinit var diagnostics: DiagnosticStore
+    private lateinit var preferences: AppPreferences
     private lateinit var deviceInfo: DeviceInfoProvider
     private var reportText: String = ""
 
@@ -26,6 +32,7 @@ class DiagnosticsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_diagnostics)
         diagnostics = DiagnosticStore(this)
+        preferences = AppPreferences(this)
         deviceInfo = DeviceInfoProvider(this)
 
         findViewById<MaterialToolbar>(R.id.diagnostics_toolbar)
@@ -43,6 +50,7 @@ class DiagnosticsActivity : AppCompatActivity() {
         reportText = buildReport()
         val status = deviceInfo.snapshot()
         val notificationGranted = notificationPermissionGranted()
+        val screenInteractive = getSystemService(PowerManager::class.java).isInteractive
 
         findViewById<TextView>(R.id.runtime_text).text = listOf(
             "${getString(R.string.device_label)}: ${status.deviceName}",
@@ -53,11 +61,22 @@ class DiagnosticsActivity : AppCompatActivity() {
             "${getString(R.string.service_notification_title)}: ${if (notificationGranted) getString(R.string.visible) else getString(R.string.hidden)}",
             "${getString(R.string.battery_access_label)}: ${if (BatteryOptimization.isExempt(this)) getString(R.string.unrestricted) else getString(R.string.restricted)}",
             "${getString(R.string.watcher_label)}: ${if (AutoFixService.isLikelyRunning(this)) getString(R.string.active) else getString(R.string.inactive)}",
+            "${getString(R.string.screen_label)}: ${if (screenInteractive) "ON" else "OFF"}",
+            "${getString(R.string.monitoring_label)}: ${diagnostics.monitoringState}",
+            "${getString(R.string.foreground_polling_label)}: ${if (diagnostics.foregroundPollingActive) "ACTIVE" else "PAUSED"}",
+            "${getString(R.string.polling_interval_diagnostics_label)}: ${formatInterval(preferences.foregroundPollIntervalMillis)}",
+            "${getString(R.string.brawl_detected_label)}: ${if (diagnostics.brawlDetected) "YES" else "NO"}",
+            "${getString(R.string.last_override_label)}: ${formatTimestamp(diagnostics.lastSuccessMillis)}",
         ).joinToString("\n")
 
         findViewById<TextView>(R.id.stats_text).text = listOf(
             "${getString(R.string.session_count)}: ${DiagnosticStore.sessionApplicationCount}",
             "${getString(R.string.total_count)}: ${diagnostics.totalApplicationCount}",
+            "${getString(R.string.foreground_checks)}: ${diagnostics.foregroundCheckCount}",
+            "${getString(R.string.overrides_sent)}: ${diagnostics.totalApplicationCount}",
+            "${getString(R.string.screen_off_suspends)}: ${diagnostics.screenOffSuspendCount}",
+            "${getString(R.string.screen_on_resumes)}: ${diagnostics.screenOnResumeCount}",
+            "${getString(R.string.checks_while_screen_off)}: ${diagnostics.checksWhileScreenOffCount}",
             "${getString(R.string.last_error)}: ${diagnostics.lastError ?: getString(R.string.no_errors)}",
         ).joinToString("\n")
 
@@ -72,6 +91,7 @@ class DiagnosticsActivity : AppCompatActivity() {
     private fun buildReport(): String {
         val status = deviceInfo.snapshot()
         val entries = diagnostics.entries()
+        val screenInteractive = getSystemService(PowerManager::class.java).isInteractive
         return buildString {
             appendLine("Unlock144BS diagnostics")
             appendLine("App: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
@@ -84,8 +104,19 @@ class DiagnosticsActivity : AppCompatActivity() {
             appendLine("Service notification visible: ${notificationPermissionGranted()}")
             appendLine("Battery unrestricted: ${BatteryOptimization.isExempt(this@DiagnosticsActivity)}")
             appendLine("Watcher active: ${AutoFixService.isLikelyRunning(this@DiagnosticsActivity)}")
+            appendLine("Screen: ${if (screenInteractive) "ON" else "OFF"}")
+            appendLine("Monitoring: ${diagnostics.monitoringState}")
+            appendLine("Foreground polling: ${if (diagnostics.foregroundPollingActive) "ACTIVE" else "PAUSED"}")
+            appendLine("Polling interval: ${formatInterval(preferences.foregroundPollIntervalMillis)}")
+            appendLine("Brawl detected: ${if (diagnostics.brawlDetected) "YES" else "NO"}")
+            appendLine("Last override: ${formatTimestamp(diagnostics.lastSuccessMillis)}")
             appendLine("Session applications: ${DiagnosticStore.sessionApplicationCount}")
             appendLine("Total applications: ${diagnostics.totalApplicationCount}")
+            appendLine("Foreground checks: ${diagnostics.foregroundCheckCount}")
+            appendLine("Overrides sent: ${diagnostics.totalApplicationCount}")
+            appendLine("Screen-off suspends: ${diagnostics.screenOffSuspendCount}")
+            appendLine("Screen-on resumes: ${diagnostics.screenOnResumeCount}")
+            appendLine("Checks while screen OFF: ${diagnostics.checksWhileScreenOffCount}")
             appendLine("Last error: ${diagnostics.lastError ?: "none"}")
             appendLine("Events:")
             if (entries.isEmpty()) appendLine("(empty)")
@@ -101,4 +132,22 @@ class DiagnosticsActivity : AppCompatActivity() {
 
     private fun notificationPermissionGranted(): Boolean =
         NotificationManagerCompat.from(this).areNotificationsEnabled()
+
+    private fun formatTimestamp(timestampMillis: Long): String = timestampMillis
+        .takeIf { it > 0L }
+        ?.let { DATE_TIME_FORMAT.format(Instant.ofEpochMilli(it)) }
+        ?: getString(R.string.never)
+
+    private fun formatInterval(intervalMillis: Long): String =
+        if (intervalMillis % 1_000L == 0L) {
+            "${intervalMillis / 1_000L} s"
+        } else {
+            "${intervalMillis / 1_000.0} s"
+        }
+
+    private companion object {
+        val DATE_TIME_FORMAT: DateTimeFormatter = DateTimeFormatter
+            .ofPattern("dd.MM.yyyy · HH:mm:ss")
+            .withZone(ZoneId.systemDefault())
+    }
 }

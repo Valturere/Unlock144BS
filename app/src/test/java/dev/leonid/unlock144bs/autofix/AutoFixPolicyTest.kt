@@ -45,4 +45,15 @@ class AutoFixPolicyTest {
             policy.evaluate("com.supercell.brawlstars", 3_000, true, 45_000),
         )
     }
+
+    @Test
+    fun `reset makes foreground game apply immediately again`() {
+        policy.evaluate("com.supercell.brawlstars", 1_000, true, 45_000)
+        policy.reset()
+
+        assertEquals(
+            ApplyReason.ENTERED_GAME,
+            policy.evaluate("com.supercell.brawlstars", 2_000, true, 45_000),
+        )
+    }
 }
