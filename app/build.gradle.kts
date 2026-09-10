@@ -1,4 +1,16 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
+
+val releaseSigningFile = rootProject.file("keystore.properties")
+val releaseSigningProperties = Properties().apply {
+    if (releaseSigningFile.exists()) {
+        releaseSigningFile.inputStream().use(::load)
+    }
+}
+
+fun Properties.requiredSigningProperty(name: String): String =
+    getProperty(name)?.takeIf(String::isNotBlank)
+        ?: error("Missing '$name' in ${releaseSigningFile.name}")
 
 plugins {
     id("com.android.application")
@@ -24,6 +36,25 @@ android {
 
     buildFeatures {
         buildConfig = true
+    }
+
+    if (releaseSigningFile.exists()) {
+        signingConfigs {
+            create("release") {
+                storeFile = rootProject.file(
+                    releaseSigningProperties.requiredSigningProperty("storeFile"),
+                )
+                storePassword = releaseSigningProperties.requiredSigningProperty("storePassword")
+                keyAlias = releaseSigningProperties.requiredSigningProperty("keyAlias")
+                keyPassword = releaseSigningProperties.requiredSigningProperty("keyPassword")
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            signingConfig = signingConfigs.findByName("release")
+        }
     }
 }
 
