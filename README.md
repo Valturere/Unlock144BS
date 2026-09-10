@@ -1,5 +1,8 @@
 # Unlock144BS
 
+> [!IMPORTANT]
+> **Unlock144BS предназначен для Xiaomi/HyperOS.** На данный момент приложение проверено только на **Xiaomi 14T / Android 16 / HyperOS / PowerKeeper 4.2.00**. Другие модели Xiaomi, POCO и Redmi, а также другие версии HyperOS и PowerKeeper могут работать, но **не проверялись и официально не поддерживаются**.
+
 Unlock144BS — небольшая Android-утилита для Xiaomi/HyperOS. На некоторых устройствах
 официальный Brawl Stars может быть ограничен 60 FPS политикой частоты обновления
 PowerKeeper. Приложение автоматически отправляет существующий PowerKeeper override:
@@ -25,8 +28,9 @@ Unlock144BS не патчит Brawl Stars и не разблокирует FPS �
 - полная приостановка foreground polling и repeat scheduling при выключенном экране;
 - тихая работа foreground service при скрытых уведомлениях.
 
-Проверено на Xiaomi 14T, Android 16, HyperOS и PowerKeeper 4.2.00. Другие устройства
-Xiaomi, POCO и Redmi могут работать, но пока не считаются официально протестированными.
+Проверено на Xiaomi 14T, Android 16, HyperOS и PowerKeeper 4.2.00. Совместимость с
+другими устройствами Xiaomi, POCO и Redmi, а также с другими версиями HyperOS и
+PowerKeeper не подтверждена.
 
 ## Установка и настройка
 
@@ -66,6 +70,8 @@ receiver при `SCREEN_OFF` отменяет единственный polling c
 
 - работа зависит от внутреннего поведения Xiaomi PowerKeeper;
 - обновление HyperOS может изменить или закрыть используемый механизм;
+- другие версии HyperOS и PowerKeeper не проверены;
+- другие модели Xiaomi, POCO и Redmi пока не считаются протестированными;
 - приложение не измеряет фактический FPS;
 - сообщение «Override 144 отправлен» подтверждает отправку команды, а не измеренные
   144 FPS;
@@ -99,3 +105,7 @@ Debug APK создаётся в `app/build/outputs/apk/debug/app-debug.apk`. Rel
 Результаты тестирования на устройстве находятся в
 [`docs/release-verification.md`](docs/release-verification.md), а анализ PowerKeeper
 receiver — в [`docs/research-stage-1.md`](docs/research-stage-1.md).
+
+## Лицензия
+
+Проект распространяется по лицензии [MIT](LICENSE).
