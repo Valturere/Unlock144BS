@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Unlock144BS</string>
+    <string name="poc_description">Минимальная проверка прямого broadcast без root и Shizuku</string>
+    <string name="apply_144">Применить 144 FPS</string>
+    <string name="ready">Готово к проверке</string>
+    <string name="sent">Отправлено без исключения. Доставку нужно подтвердить через ADB.</string>
+    <string name="failed">Ошибка: %1$s — %2$s</string>
+</resources>
