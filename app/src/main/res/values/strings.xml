@@ -43,6 +43,13 @@
     <string name="repeat_auto">Авто</string>
     <string name="repeat_off">Выкл.</string>
     <string name="repeat_auto_summary">В режиме «Авто» override повторяется раз в 45 секунд, пока Brawl Stars находится на экране.</string>
+    <string name="poll_interval_title">Интервал foreground-проверки</string>
+    <string name="poll_interval_2500">2,5 с</string>
+    <string name="poll_interval_5000">5 с</string>
+    <string name="poll_interval_10000">10 с</string>
+    <string name="poll_interval_15000">15 с</string>
+    <string name="poll_interval_30000">30 с</string>
+    <string name="poll_interval_summary">Определяет, как часто проверять foreground-приложение. При смене интервала Auto Fix сразу выполняет новую проверку. Repeat override остаётся 45 секунд.</string>
     <string name="start_after_boot">Запуск после перезагрузки</string>
     <string name="start_after_boot_summary">Возобновлять Auto Fix после загрузки телефона.</string>
 
@@ -80,6 +87,12 @@
     <string name="usage_access_label">Usage Access</string>
     <string name="battery_access_label">Батарея</string>
     <string name="watcher_label">Watcher</string>
+    <string name="screen_label">Screen</string>
+    <string name="monitoring_label">Monitoring</string>
+    <string name="foreground_polling_label">Foreground polling</string>
+    <string name="polling_interval_diagnostics_label">Polling interval</string>
+    <string name="brawl_detected_label">Brawl detected</string>
+    <string name="last_override_label">Last override</string>
     <string name="active">Активен</string>
     <string name="inactive">Неактивен</string>
     <string name="granted">Предоставлен</string>
@@ -91,6 +104,11 @@
     <string name="application_stats">Применения</string>
     <string name="session_count">За текущую сессию</string>
     <string name="total_count">Всего</string>
+    <string name="foreground_checks">Foreground checks</string>
+    <string name="overrides_sent">Overrides sent</string>
+    <string name="screen_off_suspends">Screen-off suspends</string>
+    <string name="screen_on_resumes">Screen-on resumes</string>
+    <string name="checks_while_screen_off">Checks while screen OFF</string>
     <string name="last_error">Последняя ошибка</string>
     <string name="no_errors">Нет</string>
     <string name="event_log">Последние события</string>

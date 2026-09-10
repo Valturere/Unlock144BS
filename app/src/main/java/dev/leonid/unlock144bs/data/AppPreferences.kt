@@ -18,6 +18,17 @@ class AppPreferences(context: Context) {
         get() = preferences.getBoolean(KEY_REPEAT, true)
         set(value) = preferences.edit().putBoolean(KEY_REPEAT, value).apply()
 
+    var foregroundPollIntervalMillis: Long
+        get() = normalizeForegroundPollInterval(
+            preferences.getLong(
+                KEY_FOREGROUND_POLL_INTERVAL,
+                AppConstants.DEFAULT_FOREGROUND_POLL_INTERVAL_MS,
+            ),
+        )
+        set(value) = preferences.edit()
+            .putLong(KEY_FOREGROUND_POLL_INTERVAL, normalizeForegroundPollInterval(value))
+            .apply()
+
     var startAfterBoot: Boolean
         get() = preferences.getBoolean(KEY_START_AFTER_BOOT, true)
         set(value) = preferences.edit().putBoolean(KEY_START_AFTER_BOOT, value).apply()
@@ -27,6 +38,11 @@ class AppPreferences(context: Context) {
         private const val KEY_AUTO_FIX = "auto_fix"
         private const val KEY_TARGET_RATE = "target_rate"
         private const val KEY_REPEAT = "repeat_while_playing"
+        private const val KEY_FOREGROUND_POLL_INTERVAL = "foreground_poll_interval"
         private const val KEY_START_AFTER_BOOT = "start_after_boot"
     }
 }
+
+internal fun normalizeForegroundPollInterval(value: Long): Long =
+    value.takeIf(AppConstants.SUPPORTED_FOREGROUND_POLL_INTERVALS_MS::contains)
+        ?: AppConstants.DEFAULT_FOREGROUND_POLL_INTERVAL_MS

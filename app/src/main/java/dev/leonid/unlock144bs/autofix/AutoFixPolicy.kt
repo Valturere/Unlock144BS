@@ -34,4 +34,9 @@ class AutoFixPolicy(private val targetPackage: String) {
 
         return null
     }
+
+    fun reset() {
+        targetWasForeground = false
+        lastApplicationAt = Long.MIN_VALUE
+    }
 }

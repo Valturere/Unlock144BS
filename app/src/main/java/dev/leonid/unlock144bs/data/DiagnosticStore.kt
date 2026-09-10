@@ -35,6 +35,28 @@ class DiagnosticStore(context: Context) {
     val serviceHeartbeatMillis: Long
         get() = preferences.getLong(KEY_SERVICE_HEARTBEAT, 0L)
 
+    val monitoringState: String
+        get() = preferences.getString(KEY_MONITORING_STATE, MONITORING_DISABLED)
+            ?: MONITORING_DISABLED
+
+    val foregroundPollingActive: Boolean
+        get() = preferences.getBoolean(KEY_FOREGROUND_POLLING_ACTIVE, false)
+
+    val brawlDetected: Boolean
+        get() = preferences.getBoolean(KEY_BRAWL_DETECTED, false)
+
+    val foregroundCheckCount: Int
+        get() = preferences.getInt(KEY_FOREGROUND_CHECK_COUNT, 0)
+
+    val checksWhileScreenOffCount: Int
+        get() = preferences.getInt(KEY_CHECKS_WHILE_SCREEN_OFF_COUNT, 0)
+
+    val screenOffSuspendCount: Int
+        get() = preferences.getInt(KEY_SCREEN_OFF_SUSPEND_COUNT, 0)
+
+    val screenOnResumeCount: Int
+        get() = preferences.getInt(KEY_SCREEN_ON_RESUME_COUNT, 0)
+
     @Synchronized
     fun record(event: String, result: String) {
         val entry = listOf(
@@ -74,8 +96,56 @@ class DiagnosticStore(context: Context) {
         preferences.edit().putLong(KEY_SERVICE_HEARTBEAT, System.currentTimeMillis()).apply()
     }
 
+    @Synchronized
+    fun markMonitoringActive() {
+        preferences.edit()
+            .putString(KEY_MONITORING_STATE, MONITORING_ACTIVE)
+            .putBoolean(KEY_FOREGROUND_POLLING_ACTIVE, true)
+            .apply()
+    }
+
+    @Synchronized
+    fun markMonitoringSuspended() {
+        preferences.edit()
+            .putString(KEY_MONITORING_STATE, MONITORING_SUSPENDED)
+            .putBoolean(KEY_FOREGROUND_POLLING_ACTIVE, false)
+            .putBoolean(KEY_BRAWL_DETECTED, false)
+            .putInt(KEY_SCREEN_OFF_SUSPEND_COUNT, screenOffSuspendCount + 1)
+            .apply()
+    }
+
+    @Synchronized
+    fun recordMonitoringResume() {
+        preferences.edit()
+            .putInt(KEY_SCREEN_ON_RESUME_COUNT, screenOnResumeCount + 1)
+            .apply()
+    }
+
+    @Synchronized
+    fun recordForegroundCheck(screenInteractive: Boolean) {
+        val editor = preferences.edit()
+        if (screenInteractive) {
+            editor.putInt(KEY_FOREGROUND_CHECK_COUNT, foregroundCheckCount + 1)
+        } else {
+            editor.putInt(
+                KEY_CHECKS_WHILE_SCREEN_OFF_COUNT,
+                checksWhileScreenOffCount + 1,
+            )
+        }
+        editor.apply()
+    }
+
+    fun markBrawlDetected(detected: Boolean) {
+        preferences.edit().putBoolean(KEY_BRAWL_DETECTED, detected).apply()
+    }
+
     fun markServiceStopped() {
-        preferences.edit().putLong(KEY_SERVICE_HEARTBEAT, 0L).apply()
+        preferences.edit()
+            .putLong(KEY_SERVICE_HEARTBEAT, 0L)
+            .putString(KEY_MONITORING_STATE, MONITORING_DISABLED)
+            .putBoolean(KEY_FOREGROUND_POLLING_ACTIVE, false)
+            .putBoolean(KEY_BRAWL_DETECTED, false)
+            .apply()
     }
 
     fun entries(): List<DiagnosticEntry> = preferences.getString(KEY_LOG, "").orEmpty()
@@ -94,10 +164,21 @@ class DiagnosticStore(context: Context) {
         private const val KEY_LAST_ERROR = "last_error"
         private const val KEY_TOTAL_COUNT = "total_count"
         private const val KEY_SERVICE_HEARTBEAT = "service_heartbeat"
+        private const val KEY_MONITORING_STATE = "monitoring_state"
+        private const val KEY_FOREGROUND_POLLING_ACTIVE = "foreground_polling_active"
+        private const val KEY_BRAWL_DETECTED = "brawl_detected"
+        private const val KEY_FOREGROUND_CHECK_COUNT = "foreground_check_count"
+        private const val KEY_CHECKS_WHILE_SCREEN_OFF_COUNT = "checks_while_screen_off_count"
+        private const val KEY_SCREEN_OFF_SUSPEND_COUNT = "screen_off_suspend_count"
+        private const val KEY_SCREEN_ON_RESUME_COUNT = "screen_on_resume_count"
         private const val KEY_LOG = "bounded_log"
         private const val SEPARATOR = "\t"
         private const val MAX_ENTRIES = 80
         private val SESSION_COUNT = AtomicInteger(0)
+
+        const val MONITORING_ACTIVE = "ACTIVE"
+        const val MONITORING_SUSPENDED = "SUSPENDED"
+        const val MONITORING_DISABLED = "DISABLED"
 
         val sessionApplicationCount: Int
             get() = SESSION_COUNT.get()

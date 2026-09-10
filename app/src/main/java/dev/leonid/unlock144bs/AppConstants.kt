@@ -10,5 +10,12 @@ object AppConstants {
 
     const val DEFAULT_REFRESH_RATE = 144
     const val DEFAULT_REPEAT_INTERVAL_MS = 45_000L
-    const val FOREGROUND_POLL_INTERVAL_MS = 2_500L
+    const val DEFAULT_FOREGROUND_POLL_INTERVAL_MS = 10_000L
+    val SUPPORTED_FOREGROUND_POLL_INTERVALS_MS = setOf(
+        2_500L,
+        5_000L,
+        10_000L,
+        15_000L,
+        30_000L,
+    )
 }

@@ -5,13 +5,16 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -33,14 +36,33 @@ class AutoFixService : Service() {
     private lateinit var diagnostics: DiagnosticStore
     private lateinit var detector: ForegroundPackageDetector
     private lateinit var sender: OverrideSender
+    private lateinit var powerManager: PowerManager
     private val policy = AutoFixPolicy(AppConstants.BRAWL_STARS_PACKAGE)
+    private val monitoring = AutoFixMonitoringStateMachine()
     private var lastObservedPackage: String? = null
+    private var screenReceiverRegistered = false
+
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (!preferences.autoFixEnabled) {
+                disableMonitoring()
+                return
+            }
+
+            when (intent.action) {
+                Intent.ACTION_SCREEN_OFF -> handleScreenOff()
+                Intent.ACTION_SCREEN_ON -> handleScreenOn()
+                Intent.ACTION_USER_PRESENT -> handleUserPresent()
+            }
+        }
+    }
 
     private val pollRunnable = object : Runnable {
         override fun run() {
-            poll()
-            if (preferences.autoFixEnabled) {
-                handler.postDelayed(this, AppConstants.FOREGROUND_POLL_INTERVAL_MS)
+            if (monitoring.state != MonitoringState.RUNNING) return
+            pollForegroundApp()
+            if (preferences.autoFixEnabled && monitoring.state == MonitoringState.RUNNING) {
+                handler.postDelayed(this, preferences.foregroundPollIntervalMillis)
             }
         }
     }
@@ -53,7 +75,9 @@ class AutoFixService : Service() {
         diagnostics = DiagnosticStore(this)
         detector = ForegroundPackageDetector(this)
         sender = OverrideSender(this)
+        powerManager = getSystemService(PowerManager::class.java)
         createNotificationChannel()
+        registerScreenReceiver()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -74,13 +98,39 @@ class AutoFixService : Service() {
         }
 
         startAsForeground(getString(R.string.notification_waiting))
-        diagnostics.record("Auto Fix", "watcher started")
-        handler.removeCallbacks(pollRunnable)
-        handler.post(pollRunnable)
+        val command = monitoring.enable(powerManager.isInteractive)
+        if (command != MonitoringCommand.NONE) {
+            diagnostics.record("Auto Fix", "watcher started")
+        }
+        when (command) {
+            MonitoringCommand.START_LOOP -> startMonitoring("service start", countResume = false)
+            MonitoringCommand.STOP_LOOP -> suspendMonitoring("service start: screen off")
+            MonitoringCommand.NONE,
+            MonitoringCommand.CHECK_NOW,
+            -> Unit
+        }
+        if (intent?.action == ACTION_REFRESH_POLL_INTERVAL &&
+            command == MonitoringCommand.NONE &&
+            monitoring.state == MonitoringState.RUNNING
+        ) {
+            val interval = preferences.foregroundPollIntervalMillis
+            val result =
+                "changed to ${formatInterval(interval)}; checks=${diagnostics.foregroundCheckCount}"
+            Log.i(TAG, "Polling interval -> $result; immediate foreground check")
+            diagnostics.record("Polling interval", result)
+            requestImmediateCheck()
+        }
         return START_STICKY
     }
 
-    private fun poll() {
+    private fun pollForegroundApp() {
+        if (!powerManager.isInteractive) {
+            if (monitoring.onScreenOff() == MonitoringCommand.STOP_LOOP) {
+                suspendMonitoring("interactive state changed before SCREEN_OFF delivery")
+            }
+            return
+        }
+
         diagnostics.updateServiceHeartbeat()
 
         if (!UsageAccess.isGranted(this)) {
@@ -103,11 +153,23 @@ class AutoFixService : Service() {
             null
         }
 
+        val stillInteractive = powerManager.isInteractive
+        diagnostics.recordForegroundCheck(screenInteractive = stillInteractive)
+        if (!stillInteractive) {
+            if (monitoring.onScreenOff() == MonitoringCommand.STOP_LOOP) {
+                suspendMonitoring("screen turned off during foreground check")
+            }
+            return
+        }
+
         if (foregroundPackage != lastObservedPackage) {
             if (foregroundPackage == AppConstants.BRAWL_STARS_PACKAGE) {
                 diagnostics.record("Brawl foreground detected", "active")
+                diagnostics.markBrawlDetected(true)
             } else if (lastObservedPackage == AppConstants.BRAWL_STARS_PACKAGE) {
-                diagnostics.record("Brawl left foreground", "watching")
+                Log.i(TAG, "Brawl exited -> repeat stopped")
+                diagnostics.record("Brawl exited", "repeat stopped")
+                diagnostics.markBrawlDetected(false)
             }
             lastObservedPackage = foregroundPackage
         }
@@ -120,18 +182,123 @@ class AutoFixService : Service() {
         )
 
         if (reason != null) {
+            if (!powerManager.isInteractive) {
+                if (monitoring.onScreenOff() == MonitoringCommand.STOP_LOOP) {
+                    suspendMonitoring("screen turned off before override")
+                }
+                return
+            }
             val source = when (reason) {
                 ApplyReason.ENTERED_GAME -> "Auto Fix: foreground"
                 ApplyReason.PERIODIC_REPEAT -> "Auto Fix: periodic"
             }
             when (sender.send(preferences.targetRefreshRate, source)) {
-                is OverrideResult.Sent -> updateNotification(
-                    getString(R.string.notification_applied, preferences.targetRefreshRate),
-                )
+                is OverrideResult.Sent -> {
+                    Log.i(TAG, "Brawl foreground -> override ${preferences.targetRefreshRate} sent")
+                    updateNotification(
+                        getString(R.string.notification_applied, preferences.targetRefreshRate),
+                    )
+                }
                 is OverrideResult.Failure -> updateNotification(getString(R.string.notification_error))
             }
         } else if (foregroundPackage != AppConstants.BRAWL_STARS_PACKAGE) {
             updateNotification(getString(R.string.notification_waiting))
+        }
+    }
+
+    private fun handleScreenOff() {
+        if (monitoring.onScreenOff() == MonitoringCommand.STOP_LOOP) {
+            suspendMonitoring("SCREEN_OFF")
+        }
+    }
+
+    private fun handleScreenOn() {
+        if (!powerManager.isInteractive) return
+        if (monitoring.onScreenOn() == MonitoringCommand.START_LOOP) {
+            startMonitoring("SCREEN_ON", countResume = true)
+        }
+    }
+
+    private fun handleUserPresent() {
+        val command = monitoring.onUserPresent(powerManager.isInteractive)
+        if (command == MonitoringCommand.NONE) return
+
+        Log.i(TAG, "USER_PRESENT -> immediate foreground check")
+        diagnostics.record("USER_PRESENT", "immediate foreground check")
+        when (command) {
+            MonitoringCommand.START_LOOP -> startMonitoring("USER_PRESENT", countResume = true)
+            MonitoringCommand.CHECK_NOW -> requestImmediateCheck()
+            MonitoringCommand.NONE,
+            MonitoringCommand.STOP_LOOP,
+            -> Unit
+        }
+    }
+
+    private fun startMonitoring(reason: String, countResume: Boolean) {
+        handler.removeCallbacks(pollRunnable)
+        policy.reset()
+        lastObservedPackage = null
+        diagnostics.markBrawlDetected(false)
+        diagnostics.markMonitoringActive()
+        diagnostics.updateServiceHeartbeat()
+        if (countResume) diagnostics.recordMonitoringResume()
+        val result = "monitoring resumed; checks=${diagnostics.foregroundCheckCount} " +
+            "overrides=${diagnostics.totalApplicationCount}"
+        Log.i(TAG, "$reason -> $result")
+        diagnostics.record(reason, result)
+        handler.post(pollRunnable)
+    }
+
+    private fun requestImmediateCheck() {
+        if (monitoring.state != MonitoringState.RUNNING) return
+        handler.removeCallbacks(pollRunnable)
+        policy.reset()
+        handler.post(pollRunnable)
+    }
+
+    private fun suspendMonitoring(reason: String) {
+        handler.removeCallbacks(pollRunnable)
+        policy.reset()
+        lastObservedPackage = null
+        diagnostics.markMonitoringSuspended()
+        val result = "monitoring suspended; checks=${diagnostics.foregroundCheckCount} " +
+            "overrides=${diagnostics.totalApplicationCount}"
+        Log.i(TAG, "$reason -> $result")
+        diagnostics.record(reason, result)
+    }
+
+    private fun disableMonitoring() {
+        monitoring.disable()
+        handler.removeCallbacks(pollRunnable)
+        policy.reset()
+        lastObservedPackage = null
+        diagnostics.markServiceStopped()
+    }
+
+    private fun registerScreenReceiver() {
+        if (screenReceiverRegistered) return
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_USER_PRESENT)
+        }
+        ContextCompat.registerReceiver(
+            this,
+            screenReceiver,
+            filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        screenReceiverRegistered = true
+    }
+
+    private fun unregisterScreenReceiver() {
+        if (!screenReceiverRegistered) return
+        try {
+            unregisterReceiver(screenReceiver)
+        } catch (error: IllegalArgumentException) {
+            Log.w(TAG, "Screen receiver was already unregistered", error)
+        } finally {
+            screenReceiverRegistered = false
         }
     }
 
@@ -198,15 +365,14 @@ class AutoFixService : Service() {
     }
 
     private fun stopSelfSafely() {
-        handler.removeCallbacks(pollRunnable)
-        diagnostics.markServiceStopped()
+        disableMonitoring()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
     override fun onDestroy() {
-        handler.removeCallbacks(pollRunnable)
-        diagnostics.markServiceStopped()
+        disableMonitoring()
+        unregisterScreenReceiver()
         startRequested = false
         running = false
         super.onDestroy()
@@ -220,6 +386,8 @@ class AutoFixService : Service() {
         private const val LEGACY_CHANNEL_ID = "auto_fix"
         private const val NOTIFICATION_ID = 144
         private const val ACTION_STOP = "dev.leonid.unlock144bs.action.STOP_AUTO_FIX"
+        private const val ACTION_REFRESH_POLL_INTERVAL =
+            "dev.leonid.unlock144bs.action.REFRESH_POLL_INTERVAL"
         @Volatile
         private var running = false
         @Volatile
@@ -244,6 +412,18 @@ class AutoFixService : Service() {
 
         fun ensureRunning(context: Context): Boolean = running || startRequested || start(context)
 
+        fun refreshPollingInterval(context: Context): Boolean = try {
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, AutoFixService::class.java).setAction(ACTION_REFRESH_POLL_INTERVAL),
+            )
+            true
+        } catch (error: Exception) {
+            Log.e(TAG, "Unable to refresh foreground polling interval", error)
+            DiagnosticStore(context).recordError("Polling interval refresh failed", error)
+            false
+        }
+
         fun stop(context: Context) {
             startRequested = false
             context.stopService(Intent(context, AutoFixService::class.java))
@@ -256,8 +436,16 @@ class AutoFixService : Service() {
         fun isLikelyRunning(context: Context): Boolean {
             if (running) return true
             val heartbeat = DiagnosticStore(context).serviceHeartbeatMillis
+            val interval = AppPreferences(context).foregroundPollIntervalMillis
             return heartbeat > 0L &&
-                System.currentTimeMillis() - heartbeat < AppConstants.FOREGROUND_POLL_INTERVAL_MS * 4
+                System.currentTimeMillis() - heartbeat < interval * 4
         }
+
+        private fun formatInterval(intervalMillis: Long): String =
+            if (intervalMillis % 1_000L == 0L) {
+                "${intervalMillis / 1_000L} s"
+            } else {
+                "${intervalMillis / 1_000.0} s"
+            }
     }
 }

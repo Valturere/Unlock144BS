@@ -36,6 +36,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var startAfterBootSwitch: MaterialSwitch
     private lateinit var rateGroup: MaterialButtonToggleGroup
     private lateinit var repeatGroup: MaterialButtonToggleGroup
+    private lateinit var pollIntervalGroup: MaterialButtonToggleGroup
     private var rendering = false
     private var waitingForUsageAccess = false
     private var waitingForBatteryExemption = false
@@ -98,6 +99,7 @@ class MainActivity : AppCompatActivity() {
         startAfterBootSwitch = findViewById(R.id.start_after_boot_switch)
         rateGroup = findViewById(R.id.rate_group)
         repeatGroup = findViewById(R.id.repeat_group)
+        pollIntervalGroup = findViewById(R.id.poll_interval_group)
     }
 
     private fun bindActions() {
@@ -113,6 +115,17 @@ class MainActivity : AppCompatActivity() {
         }
         repeatGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (!rendering && isChecked) preferences.repeatWhilePlaying = checkedId == R.id.repeat_auto
+        }
+        pollIntervalGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!rendering && isChecked) {
+                val interval = pollIntervalForButton(checkedId)
+                if (interval != preferences.foregroundPollIntervalMillis) {
+                    preferences.foregroundPollIntervalMillis = interval
+                    if (preferences.autoFixEnabled) {
+                        AutoFixService.refreshPollingInterval(this)
+                    }
+                }
+            }
         }
         findViewById<MaterialButton>(R.id.usage_access_button).setOnClickListener { openUsageSettings() }
         findViewById<MaterialButton>(R.id.battery_access_button).setOnClickListener {
@@ -255,6 +268,9 @@ class MainActivity : AppCompatActivity() {
         startAfterBootSwitch.isEnabled = preferences.autoFixEnabled
         rateGroup.check(buttonForRate(preferences.targetRefreshRate))
         repeatGroup.check(if (preferences.repeatWhilePlaying) R.id.repeat_auto else R.id.repeat_off)
+        pollIntervalGroup.check(
+            buttonForPollInterval(preferences.foregroundPollIntervalMillis),
+        )
 
         findViewById<TextView>(R.id.auto_fix_status).setText(
             when {
@@ -313,6 +329,22 @@ class MainActivity : AppCompatActivity() {
         90 -> R.id.rate_90
         120 -> R.id.rate_120
         else -> R.id.rate_144
+    }
+
+    private fun pollIntervalForButton(buttonId: Int): Long = when (buttonId) {
+        R.id.poll_interval_2500 -> 2_500L
+        R.id.poll_interval_5000 -> 5_000L
+        R.id.poll_interval_15000 -> 15_000L
+        R.id.poll_interval_30000 -> 30_000L
+        else -> 10_000L
+    }
+
+    private fun buttonForPollInterval(intervalMillis: Long): Int = when (intervalMillis) {
+        2_500L -> R.id.poll_interval_2500
+        5_000L -> R.id.poll_interval_5000
+        15_000L -> R.id.poll_interval_15000
+        30_000L -> R.id.poll_interval_30000
+        else -> R.id.poll_interval_10000
     }
 
     private fun showMessage(messageRes: Int) = showMessage(getString(messageRes))
