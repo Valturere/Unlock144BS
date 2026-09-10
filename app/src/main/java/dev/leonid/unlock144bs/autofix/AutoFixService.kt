@@ -62,7 +62,7 @@ class AutoFixService : Service() {
             if (monitoring.state != MonitoringState.RUNNING) return
             pollForegroundApp()
             if (preferences.autoFixEnabled && monitoring.state == MonitoringState.RUNNING) {
-                handler.postDelayed(this, preferences.foregroundPollIntervalMillis)
+                handler.postDelayed(this, nextCheckDelayMillis())
             }
         }
     }
@@ -254,6 +254,17 @@ class AutoFixService : Service() {
         handler.removeCallbacks(pollRunnable)
         policy.reset()
         handler.post(pollRunnable)
+    }
+
+    private fun nextCheckDelayMillis(): Long {
+        val foregroundPollInterval = preferences.foregroundPollIntervalMillis
+        val millisUntilRepeat = policy.millisUntilRepeat(
+            elapsedRealtime = SystemClock.elapsedRealtime(),
+            repeatEnabled = preferences.repeatWhilePlaying,
+            repeatIntervalMillis = AppConstants.DEFAULT_REPEAT_INTERVAL_MS,
+        )
+        return millisUntilRepeat?.let { minOf(foregroundPollInterval, it) }
+            ?: foregroundPollInterval
     }
 
     private fun suspendMonitoring(reason: String) {

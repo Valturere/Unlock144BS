@@ -39,4 +39,13 @@ class AutoFixPolicy(private val targetPackage: String) {
         targetWasForeground = false
         lastApplicationAt = Long.MIN_VALUE
     }
+
+    fun millisUntilRepeat(
+        elapsedRealtime: Long,
+        repeatEnabled: Boolean,
+        repeatIntervalMillis: Long,
+    ): Long? {
+        if (!targetWasForeground || !repeatEnabled) return null
+        return (repeatIntervalMillis - (elapsedRealtime - lastApplicationAt)).coerceAtLeast(0L)
+    }
 }

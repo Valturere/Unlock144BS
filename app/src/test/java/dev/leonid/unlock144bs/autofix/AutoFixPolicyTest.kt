@@ -56,4 +56,19 @@ class AutoFixPolicyTest {
             policy.evaluate("com.supercell.brawlstars", 2_000, true, 45_000),
         )
     }
+    @Test
+    fun `reports time until repeat independently from polling interval`() {
+        policy.evaluate("com.supercell.brawlstars", 1_000, true, 45_000)
+
+        assertEquals(5_000L, policy.millisUntilRepeat(41_000, true, 45_000))
+        assertEquals(0L, policy.millisUntilRepeat(50_000, true, 45_000))
+    }
+
+    @Test
+    fun `does not schedule repeat after game leaves foreground`() {
+        policy.evaluate("com.supercell.brawlstars", 1_000, true, 45_000)
+        policy.evaluate("com.example.other", 2_000, true, 45_000)
+
+        assertNull(policy.millisUntilRepeat(3_000, true, 45_000))
+    }
 }
