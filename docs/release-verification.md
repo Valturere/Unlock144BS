@@ -12,6 +12,10 @@
 - Auto Fix обнаруживает вход Brawl Stars в foreground и немедленно отправляет override.
 - При режиме «Авто» повтор зарегистрирован через 45.15 секунды; повторные broadcast
   идемпотентны и не вызвали видимых проблем.
+- Foreground polling полностью останавливается в non-interactive состоянии, а
+  `SCREEN_ON` и `USER_PRESENT` запускают немедленную проверку без второго loop.
+- Интервал foreground-проверки настраивается отдельно (2,5 / 5 / 10 / 15 / 30 секунд),
+  по умолчанию используется 10 секунд. Repeat override остаётся привязан к 45 секундам.
 - При включённой оптимизации батареи HyperOS заморозил foreground service. После выбора
   «Нет ограничений» heartbeat и повторы продолжили выполняться во время игры.
 - Auto Fix OFF остановил service; за контрольные 48 секунд в игре число отправок не
@@ -25,6 +29,33 @@
   текущую видимость и открывает системные настройки уведомлений; Android при этом может
   показывать service в системном списке активных приложений.
 - `testDebugUnitTest`, `lintDebug`, `assembleDebug` и `assembleRelease` проходят.
+
+## Screen-state optimization и polling interval
+
+- Для `SCREEN_OFF`, `SCREEN_ON` и `USER_PRESENT` используется один динамический
+  receiver, зарегистрированный на время жизни `AutoFixService` с
+  `ContextCompat.RECEIVER_NOT_EXPORTED`. Все три action являются защищёнными системными
+  broadcast. Receiver снимается в `onDestroy`.
+- При старте service реальное состояние определяется через `PowerManager.isInteractive`.
+  После reboot воспроизведён старт FGS при `mWakefulness=Dozing`: service сразу перешёл
+  в `SCREEN_OFF_SUSPENDED`, не запуская foreground detector.
+- В screen-off тесте значение `Foreground checks` не изменилось между suspend и resume;
+  `Checks while screen OFF` осталось равно `0`. FGS при этом продолжал работать.
+- Во время Brawl экран оставался выключенным больше 60 секунд: новых override не было.
+  После `SCREEN_ON` override ушёл на первой немедленной foreground-проверке.
+- Три последовательных цикла OFF/ON дали ровно три suspend и три resume события. После
+  последнего resume зарегистрирован один periodic override; удвоения loop не выявлено.
+- Auto Fix OFF остановил service; последующие screen events не возобновили polling и не
+  отправили override.
+- При интервале 2,5 секунды counter вырос на 5 за 11,1 секунды: одна immediate и четыре
+  scheduled проверки. При интервале 15 секунд counter вырос на 2 за 16,2 секунды: одна
+  immediate и одна scheduled проверка. Значение 10 секунд сохранилось после reinstall и
+  reboot и отображается в Copy diagnostics.
+- При смене интервала pending callback снимается перед немедленной проверкой. Scheduler
+  остаётся единственным `Handler/Runnable`.
+- Чтобы polling interval не сдвигал repeat, delay единственного callback вычисляется как
+  минимум из выбранного interval и времени до следующего repeat. На устройстве при
+  polling 10 секунд periodic override прошёл через 45,006 секунды после initial.
 
 ## Архитектурное решение для уведомления
 
@@ -45,6 +76,8 @@ service остаётся видимым в системном Task Manager.
 - [UsageStatsManager](https://developer.android.com/reference/android/app/usage/UsageStatsManager)
 - [PeriodicWorkRequest](https://developer.android.com/reference/androidx/work/PeriodicWorkRequest)
 - [Background work restrictions](https://developer.android.com/develop/background-work/background-tasks/bg-work-restrictions)
+- [Broadcasts overview](https://developer.android.com/develop/background-work/background-tasks/broadcasts)
+- [PowerManager.isInteractive](https://developer.android.com/reference/android/os/PowerManager#isInteractive())
 
 ## Release-подпись
 

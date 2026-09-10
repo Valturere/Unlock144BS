@@ -1,62 +1,101 @@
 # Unlock144BS
 
-Небольшая native Android-утилита для Xiaomi/HyperOS, которая отправляет PowerKeeper
-проверенный refresh-rate override для официального Brawl Stars.
+Unlock144BS — небольшая Android-утилита для Xiaomi/HyperOS. На некоторых устройствах
+официальный Brawl Stars может быть ограничен 60 FPS политикой частоты обновления
+PowerKeeper. Приложение автоматически отправляет существующий PowerKeeper override:
+
+```text
+com.supercell.brawlstars → 144
+```
+
+Unlock144BS не патчит Brawl Stars и не разблокирует FPS внутри игрового движка. Оно
+меняет Xiaomi/HyperOS refresh-rate override через системный интерфейс PowerKeeper.
+
+## Возможности
+
+- без root;
+- без Shizuku;
+- без модификации игры или системных APK;
+- без удаления или отключения PowerKeeper;
+- автоматическое применение override при появлении Brawl Stars в foreground;
+- повтор override примерно раз в 45 секунд, пока игра остаётся в foreground;
+- настраиваемый интервал foreground-проверки: 2,5 / 5 / 10 / 15 / 30 секунд
+  (по умолчанию 10 секунд);
+- автоматическое возобновление после перезагрузки;
+- полная приостановка foreground polling и repeat scheduling при выключенном экране;
+- тихая работа foreground service при скрытых уведомлениях.
+
+Проверено на Xiaomi 14T, Android 16, HyperOS и PowerKeeper 4.2.00. Другие устройства
+Xiaomi, POCO и Redmi могут работать, но пока не считаются официально протестированными.
+
+## Установка и настройка
+
+1. Установите APK.
+2. Откройте Unlock144BS и включите **Auto Fix**.
+3. Предоставьте Usage Access.
+4. Для батареи Unlock144BS выберите режим **Нет ограничений** — HyperOS иначе может
+   заморозить watcher во время игры.
+5. При желании оставьте служебные уведомления отключёнными/скрытыми.
+6. Запускайте Brawl Stars обычным способом.
+
+Меню Brawl Stars может оставаться на 60 FPS. Цель override — высокая частота
+непосредственно в бою.
+
+Выключение Auto Fix прекращает polling и новые broadcast-сообщения. Безопасного
+значения для удаления уже сохранённого PowerKeeper override в исследованной версии
+4.2.00 нет: нулевые и отрицательные значения receiver игнорирует.
 
 ## Как это работает
 
-- пакет игры: `com.supercell.brawlstars`;
-- получатель: `com.miui.powerkeeper`;
-- action: `com.xiaomi.joyose.OVERRIDE_GAME_FRESHRATE`;
-- по умолчанию отправляется `override_freshrate=144`;
-- Auto Fix обнаруживает Brawl Stars через `UsageStatsManager`, отправляет override при
-  входе в игру и повторяет его раз в 45 секунд, пока игра остаётся на экране.
+Приложение определяет foreground-пакет через `UsageStatsManager` и отправляет package-
+scoped broadcast в `com.miui.powerkeeper`:
 
-Joyose, Shizuku и root не требуются. Приложение не изменяет Brawl Stars, PowerKeeper
-или системные APK.
+```text
+action: com.xiaomi.joyose.OVERRIDE_GAME_FRESHRATE
+override_pkg_name: com.supercell.brawlstars
+override_freshrate: 144
+```
 
-## Первоначальная настройка
+Foreground service остаётся запущенным для надёжной работы на HyperOS, но динамический
+receiver при `SCREEN_OFF` отменяет единственный polling callback. WakeLock не
+используется. `SCREEN_ON` и `USER_PRESENT` запускают немедленную проверку, после чего
+продолжается ровно один polling loop с выбранным интервалом. Интервал повтора override
+остаётся независимым и составляет примерно 45 секунд.
 
-1. Установить APK и открыть Unlock144BS.
-2. Предоставить Usage Access.
-3. На открывшемся экране батареи выбрать **Нет ограничений**. На HyperOS это нужно,
-   чтобы система не замораживала watcher во время игры.
-4. Включить Auto Fix. Приложение не запрашивает разрешение на уведомления: на новой
-   установке служебная карточка скрыта, а watcher продолжает работать как foreground
-   service. Управлять видимостью можно кнопкой «Открыть настройки уведомлений».
+## Ограничения
 
-После этого Brawl Stars можно запускать обычным способом. При включённой настройке
-«Запуск после перезагрузки» watcher возобновляется после первой разблокировки телефона.
+- работа зависит от внутреннего поведения Xiaomi PowerKeeper;
+- обновление HyperOS может изменить или закрыть используемый механизм;
+- приложение не измеряет фактический FPS;
+- сообщение «Override 144 отправлен» подтверждает отправку команды, а не измеренные
+  144 FPS;
+- экран и игра должны поддерживать выбранную частоту, а итоговое поведение зависит от
+  системы и самой игры.
 
-Выключение Auto Fix прекращает новые broadcast-сообщения. Безопасного значения для
-удаления уже сохранённого PowerKeeper override в исследованной версии 4.2.00 нет:
-нулевые и отрицательные значения receiver игнорирует.
+## Конфиденциальность
+
+- нет аналитики и телеметрии;
+- нет сбора персональных данных;
+- нет сетевого обмена;
+- разрешение `INTERNET` отсутствует;
+- диагностика и счётчики хранятся только локально на устройстве.
 
 ## Сборка
 
-Проект рассчитан на Android Studio и JDK 17. Для первой release-сборки один раз
-создайте постоянный локальный ключ:
-
-```powershell
-.\scripts\create-release-keystore.ps1
-```
-
-Скрипт создаёт игнорируемые Git файлы `signing/unlock144bs-release.jks` и
-`keystore.properties`. Их нужно сохранить вместе в защищённой резервной копии:
-без того же ключа Android не позволит устанавливать будущие обновления поверх release.
-
-Сборка и проверки:
+Проект использует Android Gradle Plugin, Kotlin и JDK 17. Минимальная версия — Android
+8.0 (API 26), target/compile SDK — 36.
 
 ```powershell
 .\gradlew.bat testDebugUnitTest lintDebug assembleDebug assembleRelease
 ```
 
-Минимальная версия — Android 8.0 (API 26), target/compile SDK — 36. Debug APK появляется
-в `app/build/outputs/apk/debug/app-debug.apk`; подписанный release — в
-`app/build/outputs/apk/release/app-release.apk` при наличии `keystore.properties`.
+Debug APK создаётся в `app/build/outputs/apk/debug/app-debug.apk`. Release подписывается
+только при наличии локальных игнорируемых Git-файлов
+`signing/unlock144bs-release.jks` и `keystore.properties`. Эти файлы и пароли нельзя
+публиковать или коммитить.
 
-## Проверка на устройстве
+## Проверка
 
-Механизм и Auto Fix проверены на Xiaomi 14T, Android 16, PowerKeeper 4.2.00. Подробные
-результаты находятся в [`docs/release-verification.md`](docs/release-verification.md),
-а анализ receiver — в [`docs/research-stage-1.md`](docs/research-stage-1.md).
+Результаты тестирования на устройстве находятся в
+[`docs/release-verification.md`](docs/release-verification.md), а анализ PowerKeeper
+receiver — в [`docs/research-stage-1.md`](docs/research-stage-1.md).
