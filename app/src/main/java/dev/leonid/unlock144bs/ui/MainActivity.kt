@@ -52,6 +52,7 @@ class MainActivity : AppCompatActivity() {
     private var waitingForUsageAccess = false
     private var waitingForBatteryExemption = false
     private var enableAfterBatteryExemption = false
+    private var unusedAppRestrictionsStatus = UnusedAppRestrictionsConstants.ERROR
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -103,6 +104,7 @@ class MainActivity : AppCompatActivity() {
             AutoFixService.ensureRunning(this)
         }
         render()
+        refreshUnusedAppRestrictionsStatus()
     }
 
     private fun bindViews() {
@@ -266,22 +268,36 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openUnusedAppRestrictionsSettings() {
+        queryUnusedAppRestrictionsStatus { status ->
+            unusedAppRestrictionsStatus = status
+            if (status == UnusedAppRestrictionsConstants.FEATURE_NOT_AVAILABLE) {
+                openAppInfo()
+                return@queryUnusedAppRestrictionsStatus
+            }
+            try {
+                appSettingsLauncher.launch(
+                    IntentCompat.createManageUnusedAppRestrictionsIntent(this, packageName),
+                )
+            } catch (_: Exception) {
+                openAppInfo()
+            }
+        }
+    }
+
+    private fun refreshUnusedAppRestrictionsStatus() {
+        queryUnusedAppRestrictionsStatus { status ->
+            unusedAppRestrictionsStatus = status
+            if (!isFinishing && !isDestroyed) render()
+        }
+    }
+
+    private fun queryUnusedAppRestrictionsStatus(onResult: (Int) -> Unit) {
         val statusFuture = PackageManagerCompat.getUnusedAppRestrictionsStatus(this)
         statusFuture.addListener(
             {
                 val status = runCatching { statusFuture.get() }
                     .getOrDefault(UnusedAppRestrictionsConstants.ERROR)
-                if (status == UnusedAppRestrictionsConstants.FEATURE_NOT_AVAILABLE) {
-                    openAppInfo()
-                    return@addListener
-                }
-                try {
-                    appSettingsLauncher.launch(
-                        IntentCompat.createManageUnusedAppRestrictionsIntent(this, packageName),
-                    )
-                } catch (_: Exception) {
-                    openAppInfo()
-                }
+                onResult(status)
             },
             ContextCompat.getMainExecutor(this),
         )
@@ -345,19 +361,29 @@ class MainActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.battery_access_button).setText(
             if (batteryExempt) R.string.battery_access_granted else R.string.battery_access_required,
         )
-        findViewById<View>(R.id.setup_steps).visibility = if (
-            shouldShowSetupSteps(
-                autoFixEnabled = preferences.autoFixEnabled,
-                usageGranted = usageGranted,
-                batteryExempt = batteryExempt,
-            )
-        ) {
-            View.VISIBLE
-        } else {
-            View.GONE
-        }
+        val onboarding = onboardingVisibility(
+            autoFixEnabled = preferences.autoFixEnabled,
+            usageGranted = usageGranted,
+            batteryExempt = batteryExempt,
+            unusedAppRestrictionsStatus = unusedAppRestrictionsStatus,
+        )
+        findViewById<View>(R.id.setup_steps).visibility =
+            if (onboarding.showSetup) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.required_setup_steps).visibility =
+            if (onboarding.showRequiredSteps) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.background_work_step_container).visibility =
+            if (onboarding.showBackgroundStep) View.VISIBLE else View.GONE
         findViewById<View>(R.id.restricted_settings_help).visibility =
             if (usageGranted) View.GONE else View.VISIBLE
+        findViewById<TextView>(R.id.background_work_status).setText(
+            when (unusedAppRestrictionsStatus) {
+                UnusedAppRestrictionsConstants.API_30_BACKPORT,
+                UnusedAppRestrictionsConstants.API_30,
+                UnusedAppRestrictionsConstants.API_31,
+                -> R.string.background_work_status_enabled
+                else -> R.string.background_work_status_unknown
+            },
+        )
         findViewById<MaterialButton>(R.id.notification_settings_button).setText(
             if (serviceNotificationVisible) {
                 R.string.hide_service_notification

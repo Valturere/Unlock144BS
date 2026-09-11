@@ -23,7 +23,7 @@
     <string name="auto_fix_summary">Следить за foreground-приложением и применять override при запуске игры.</string>
     <string name="auto_fix_off_note">Выключение прекращает новые отправки. Безопасного reset-командой PowerKeeper не предоставляет.</string>
     <string name="setup_title">Первоначальная настройка</string>
-    <string name="setup_summary">Три системных шага для надёжной фоновой работы.</string>
+    <string name="setup_summary">Системные шаги для надёжной фоновой работы.</string>
     <string name="usage_access_step">Доступ к статистике использования</string>
     <string name="usage_access_granted">Usage Access предоставлен</string>
     <string name="usage_access_required">Настроить Usage Access</string>
@@ -36,6 +36,8 @@
     <string name="battery_access_explanation">HyperOS иначе может заморозить Auto Fix во время игры. Исключение действует только для Unlock144BS и отменяется в настройках.</string>
     <string name="background_work_step">Фоновая работа</string>
     <string name="background_work_explanation">Unlock144BS работает в фоне и может долго не открываться вручную. Рекомендуется отключить системную настройку «Приостанавливать работу приложения, если оно не используется». Название может отличаться на вашем устройстве. Это рекомендация, а не обязательное условие.</string>
+    <string name="background_work_status_enabled">Системные ограничения для неиспользуемого приложения сейчас включены. Auto Fix уже работает; отключение рекомендуется для надёжности.</string>
+    <string name="background_work_status_unknown">Не удалось проверить состояние этой системной настройки. Auto Fix может работать; проверьте её вручную.</string>
     <string name="open_app_settings">Открыть настройки приложения</string>
     <string name="service_notification_title">Служебное уведомление</string>
     <string name="hide_service_notification">Скрыть в настройках Android</string>
