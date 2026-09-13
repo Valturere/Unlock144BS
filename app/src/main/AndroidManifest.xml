@@ -14,6 +14,7 @@
     <queries>
         <package android:name="com.supercell.brawlstars" />
         <package android:name="com.miui.powerkeeper" />
+        <package android:name="com.miui.securitycenter" />
     </queries>
 
     <application

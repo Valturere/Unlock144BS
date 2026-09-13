@@ -1,5 +1,6 @@
 package dev.leonid.unlock144bs.ui
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -27,6 +28,7 @@ import dev.leonid.unlock144bs.system.DeviceInfoProvider
 import dev.leonid.unlock144bs.system.OverrideResult
 import dev.leonid.unlock144bs.system.OverrideSender
 import dev.leonid.unlock144bs.system.UsageAccess
+import dev.leonid.unlock144bs.system.XiaomiAutostart
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -149,6 +151,13 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<MaterialButton>(R.id.battery_access_button).setOnClickListener {
             requestBatteryExemption(enableAfterGrant = false)
+        }
+        findViewById<MaterialButton>(R.id.xiaomi_autostart_button).setOnClickListener {
+            openXiaomiAutostartSettings()
+        }
+        findViewById<MaterialButton>(R.id.xiaomi_autostart_done_button).setOnClickListener {
+            preferences.xiaomiAutostartAcknowledged = true
+            render()
         }
         findViewById<MaterialButton>(R.id.background_settings_button).setOnClickListener {
             openUnusedAppRestrictionsSettings()
@@ -284,6 +293,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun openXiaomiAutostartSettings() {
+        try {
+            appSettingsLauncher.launch(XiaomiAutostart.settingsIntent())
+        } catch (_: ActivityNotFoundException) {
+            showMessage(R.string.autostart_settings_fallback)
+            openAppInfo()
+        } catch (_: SecurityException) {
+            showMessage(R.string.autostart_settings_fallback)
+            openAppInfo()
+        }
+    }
+
     private fun refreshUnusedAppRestrictionsStatus() {
         queryUnusedAppRestrictionsStatus { status ->
             unusedAppRestrictionsStatus = status
@@ -329,6 +350,7 @@ class MainActivity : AppCompatActivity() {
         val status = deviceInfo.snapshot()
         val usageGranted = UsageAccess.isGranted(this)
         val batteryExempt = BatteryOptimization.isExempt(this)
+        val xiaomiAutostartAvailable = XiaomiAutostart.isAvailable(this)
         val serviceNotificationVisible = notificationsVisible()
         rendering = true
 
@@ -365,12 +387,16 @@ class MainActivity : AppCompatActivity() {
             autoFixEnabled = preferences.autoFixEnabled,
             usageGranted = usageGranted,
             batteryExempt = batteryExempt,
+            xiaomiAutostartAvailable = xiaomiAutostartAvailable,
+            xiaomiAutostartAcknowledged = preferences.xiaomiAutostartAcknowledged,
             unusedAppRestrictionsStatus = unusedAppRestrictionsStatus,
         )
         findViewById<View>(R.id.setup_steps).visibility =
             if (onboarding.showSetup) View.VISIBLE else View.GONE
         findViewById<View>(R.id.required_setup_steps).visibility =
             if (onboarding.showRequiredSteps) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.xiaomi_autostart_step_container).visibility =
+            if (onboarding.showXiaomiAutostartStep) View.VISIBLE else View.GONE
         findViewById<View>(R.id.background_work_step_container).visibility =
             if (onboarding.showBackgroundStep) View.VISIBLE else View.GONE
         findViewById<View>(R.id.restricted_settings_help).visibility =

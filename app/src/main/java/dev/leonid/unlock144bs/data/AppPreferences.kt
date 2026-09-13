@@ -33,6 +33,12 @@ class AppPreferences(context: Context) {
         get() = preferences.getBoolean(KEY_START_AFTER_BOOT, true)
         set(value) = preferences.edit().putBoolean(KEY_START_AFTER_BOOT, value).apply()
 
+    var xiaomiAutostartAcknowledged: Boolean
+        get() = preferences.getBoolean(KEY_XIAOMI_AUTOSTART_ACKNOWLEDGED, false)
+        set(value) = preferences.edit()
+            .putBoolean(KEY_XIAOMI_AUTOSTART_ACKNOWLEDGED, value)
+            .apply()
+
     companion object {
         private const val FILE_NAME = "unlock144_preferences"
         private const val KEY_AUTO_FIX = "auto_fix"
@@ -40,6 +46,8 @@ class AppPreferences(context: Context) {
         private const val KEY_REPEAT = "repeat_while_playing"
         private const val KEY_FOREGROUND_POLL_INTERVAL = "foreground_poll_interval"
         private const val KEY_START_AFTER_BOOT = "start_after_boot"
+        private const val KEY_XIAOMI_AUTOSTART_ACKNOWLEDGED =
+            "xiaomi_autostart_acknowledged"
     }
 }
 

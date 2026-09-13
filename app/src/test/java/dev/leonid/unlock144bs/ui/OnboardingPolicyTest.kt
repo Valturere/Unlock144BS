@@ -17,11 +17,14 @@ class OnboardingPolicyTest {
             autoFixEnabled = true,
             usageGranted = false,
             batteryExempt = true,
+            xiaomiAutostartAvailable = false,
+            xiaomiAutostartAcknowledged = false,
             unusedAppRestrictionsStatus = DISABLED,
         )
 
         assertTrue(visibility.showSetup)
         assertTrue(visibility.showRequiredSteps)
+        assertFalse(visibility.showXiaomiAutostartStep)
         assertFalse(visibility.showBackgroundStep)
     }
 
@@ -32,6 +35,7 @@ class OnboardingPolicyTest {
 
             assertTrue(visibility.showSetup)
             assertFalse(visibility.showRequiredSteps)
+            assertFalse(visibility.showXiaomiAutostartStep)
             assertTrue(visibility.showBackgroundStep)
         }
     }
@@ -42,6 +46,7 @@ class OnboardingPolicyTest {
 
         assertTrue(visibility.showSetup)
         assertFalse(visibility.showRequiredSteps)
+        assertFalse(visibility.showXiaomiAutostartStep)
         assertTrue(visibility.showBackgroundStep)
     }
 
@@ -52,8 +57,41 @@ class OnboardingPolicyTest {
 
             assertFalse(visibility.showSetup)
             assertFalse(visibility.showRequiredSteps)
+            assertFalse(visibility.showXiaomiAutostartStep)
             assertFalse(visibility.showBackgroundStep)
         }
+    }
+
+    @Test
+    fun `available Xiaomi autostart stays visible until user acknowledges recommendation`() {
+        val visibility = onboardingVisibility(
+            autoFixEnabled = true,
+            usageGranted = true,
+            batteryExempt = true,
+            xiaomiAutostartAvailable = true,
+            xiaomiAutostartAcknowledged = false,
+            unusedAppRestrictionsStatus = DISABLED,
+        )
+
+        assertTrue(visibility.showSetup)
+        assertFalse(visibility.showRequiredSteps)
+        assertTrue(visibility.showXiaomiAutostartStep)
+        assertFalse(visibility.showBackgroundStep)
+    }
+
+    @Test
+    fun `acknowledged Xiaomi autostart recommendation no longer keeps setup visible`() {
+        val visibility = onboardingVisibility(
+            autoFixEnabled = true,
+            usageGranted = true,
+            batteryExempt = true,
+            xiaomiAutostartAvailable = true,
+            xiaomiAutostartAcknowledged = true,
+            unusedAppRestrictionsStatus = DISABLED,
+        )
+
+        assertFalse(visibility.showSetup)
+        assertFalse(visibility.showXiaomiAutostartStep)
     }
 
     private fun completedRequiredSetup(unusedAppRestrictionsStatus: Int) =
@@ -61,6 +99,8 @@ class OnboardingPolicyTest {
             autoFixEnabled = true,
             usageGranted = true,
             batteryExempt = true,
+            xiaomiAutostartAvailable = false,
+            xiaomiAutostartAcknowledged = false,
             unusedAppRestrictionsStatus = unusedAppRestrictionsStatus,
         )
 }

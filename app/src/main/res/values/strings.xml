@@ -34,6 +34,12 @@
     <string name="battery_access_granted">Батарея: без ограничений</string>
     <string name="battery_access_required">Снять ограничение батареи</string>
     <string name="battery_access_explanation">HyperOS иначе может заморозить Auto Fix во время игры. Исключение действует только для Unlock144BS и отменяется в настройках.</string>
+    <string name="xiaomi_autostart_step">Фоновый автозапуск</string>
+    <string name="xiaomi_autostart_explanation">На Xiaomi/HyperOS разрешите фоновый автозапуск для Unlock144BS. Без него система может остановить Auto Fix после закрытия приложения.</string>
+    <string name="xiaomi_autostart_hint">Включите переключатель напротив Unlock144BS, затем вернитесь и нажмите «Я включил автозапуск».</string>
+    <string name="open_xiaomi_autostart">Открыть автозапуск</string>
+    <string name="xiaomi_autostart_done">Я включил автозапуск</string>
+    <string name="autostart_settings_fallback">Экран автозапуска недоступен — открыта информация о приложении</string>
     <string name="background_work_step">Фоновая работа</string>
     <string name="background_work_explanation">Unlock144BS работает в фоне и может долго не открываться вручную. Рекомендуется отключить системную настройку «Приостанавливать работу приложения, если оно не используется». Название может отличаться на вашем устройстве. Это рекомендация, а не обязательное условие.</string>
     <string name="background_work_status_enabled">Системные ограничения для неиспользуемого приложения сейчас включены. Auto Fix уже работает; отключение рекомендуется для надёжности.</string>

@@ -289,6 +289,52 @@
                         </LinearLayout>
 
                         <LinearLayout
+                            android:id="@+id/xiaomi_autostart_step_container"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="20dp"
+                                android:text="@string/xiaomi_autostart_step"
+                                android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+                                android:textColor="@color/color_on_surface" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp"
+                                android:text="@string/xiaomi_autostart_explanation"
+                                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                                android:textColor="@color/color_on_surface" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:text="@string/xiaomi_autostart_hint"
+                                android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                                android:textColor="@color/color_on_surface_variant" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/xiaomi_autostart_button"
+                                style="?attr/materialButtonOutlinedStyle"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:text="@string/open_xiaomi_autostart" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/xiaomi_autostart_done_button"
+                                style="@style/Widget.Material3.Button.TextButton"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/xiaomi_autostart_done" />
+                        </LinearLayout>
+
+                        <LinearLayout
                             android:id="@+id/background_work_step_container"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
