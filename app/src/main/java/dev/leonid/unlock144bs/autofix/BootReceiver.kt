@@ -10,21 +10,32 @@ import dev.leonid.unlock144bs.system.UsageAccess
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+        val trigger = when (intent.action) {
+            Intent.ACTION_BOOT_COMPLETED -> StartupTrigger.BOOT_COMPLETED
+            Intent.ACTION_MY_PACKAGE_REPLACED -> StartupTrigger.MY_PACKAGE_REPLACED
+            else -> return
+        }
 
         val preferences = AppPreferences(context)
         val diagnostics = DiagnosticStore(context)
-        diagnostics.record("Boot completed", "received")
+        val (receivedEvent, autoFixEvent) = when (trigger) {
+            StartupTrigger.BOOT_COMPLETED -> "Boot completed" to "Boot Auto Fix"
+            StartupTrigger.MY_PACKAGE_REPLACED -> "Package replaced" to "Update Auto Fix"
+        }
+        diagnostics.record(receivedEvent, "received")
 
-        if (preferences.autoFixEnabled &&
-            preferences.startAfterBoot &&
-            UsageAccess.isGranted(context) &&
-            BatteryOptimization.isExempt(context)
+        if (shouldStartAutoFix(
+                trigger = trigger,
+                autoFixEnabled = preferences.autoFixEnabled,
+                startAfterBoot = preferences.startAfterBoot,
+                usageAccessGranted = UsageAccess.isGranted(context),
+                batteryOptimizationExempt = BatteryOptimization.isExempt(context),
+            )
         ) {
             val started = AutoFixService.start(context)
-            diagnostics.record("Boot Auto Fix", if (started) "start requested" else "start failed")
+            diagnostics.record(autoFixEvent, if (started) "start requested" else "start failed")
         } else {
-            diagnostics.record("Boot Auto Fix", "skipped by settings or incomplete setup")
+            diagnostics.record(autoFixEvent, "skipped: disabled or setup incomplete")
         }
     }
 }
